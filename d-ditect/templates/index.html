@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D-DiTECT</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">    
+</head>
+
+<body>
+    <header class="header animate__animated animate__fadeIn">
+        <div class="header-content">
+            <h1>D-DiTECT : Multimodal Depression Analysis System</h1>
+            <div class="user-controls">
+                <span class="username"> <i class="fas fa-user"></i> {{ username }}</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-secondary">
+                    Logout <i class="fas fa-sign-out-alt"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <main class="animate__animated animate__fadeInLeft">
+            <section class="card">
+                <div id="video-container">
+                    <img id="video" >
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="startBtn" onclick="startVideo()">
+                        <i class="fas fa-play"></i>  Start Detection
+                    </button>
+                    <button class="btn btn-danger" id="stopBtn" onclick="stopVideo()" disabled>
+                        <i class="fas fa-stop"></i> Stop Webcam
+                    </button>
+                </div>
+            </section>
+
+                <div id="status" role="status">Click "Start Detection" to begin emotion detection</div>
+                <div ><p align="center">©Copyright 2025 - Sonal Silva</p></div>    
+            
+        </main>
+
+        <aside class="animate__animated animate__fadeInRight">
+            <section class="card">
+                <h2> <i class="fas fa-chart-line"></i> Analysis Report</h2>
+                <div id="analysis-results" role="region" aria-label="Analysis results">No analysis results yet
+                </div>
+               
+                <div class="btn-group">
+                    <button class="btn btn-success" id="analyzeBtn" onclick="analyzeAll()" disabled>
+                        <i class="fas fa-search"></i> Analyze
+                    </button>
+                    <button class="btn btn-warning" id="refreshBtn" onclick="refreshPage()" disabled>
+                        <i class="fas fa-sync-alt"> </i> Refresh
+                    </button>
+                    <button class="btn btn-primary" onclick="downloadReport()">
+                        <i class="fas fa-download"></i>  Download Report
+                    </button>
+                </div>
+            </section>            
+        </aside>
+    </div>
+    <SCRIPT>
+        const videoFeedUrl = "{{ url_for('video_feed') }}";
+    </SCRIPT>
+    
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+</body>
+</html>

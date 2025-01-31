@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D-DiTECT - Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="login-container animate__animated animate__fadeIn">
+        <div class="login-card">
+            <h1>D-DiTECT</h1>
+            <h2>Welcome</h2>
+            <form id="loginForm" action="{{ url_for('login') }}" method="POST">
+                <div class="form-group">
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        placeholder="Enter your name"
+                        oninput="validateForm()"
+                        required
+                    >
+                </div>
+                <button 
+                    type="submit" 
+                    id="loginBtn" 
+                    class="btn btn-primary" 
+                    disabled             
+                >
+                    Enter
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function validateForm() {
+            const username = document.getElementById('username').value.trim();
+            const loginBtn = document.getElementById('loginBtn');
+            loginBtn.disabled = username.length === 0;
+        }
+    </script>
+</body>
+</html>
