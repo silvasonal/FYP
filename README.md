@@ -24,3 +24,12 @@ pip install keras tensorflow opencv-python flask sounddevice soundfile scikit-le
 ### 4. Execute the Following Commands to Run the Application:
 cd d-ditect
 python app.py
+
+###------------------------------------------------------------------------------------------------------------
+
+### 5. To run the test Cases
+Install Required Libraries in the Testing Folder:
+    npm init playwright@latest
+
+Execute the Test Cases using the following command in Testing Folder:
+    npx playwright test automationTesting.spec.ts --headed
