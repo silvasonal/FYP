@@ -1,11 +1,13 @@
 import os
 import cv2
 import numpy as np
-from keras.models import load_model
+from keras.models import load_model # type: ignore
 from flask import Flask, render_template, Response, jsonify, request, session, redirect, url_for, g
 import threading
 import sounddevice as sd  
 import soundfile as sf
+import math 
+from pydub import AudioSegment 
   
 from prediction import predict_sentiment, analyze_depression_audio
 
@@ -18,6 +20,8 @@ audio_thread = None
 RECORDINGS_DIR = 'recordings'
 AUDIO_FILEPATH = os.path.join(RECORDINGS_DIR, f'audio_recoding.wav')
 REPORT_PATH = os.path.join(RECORDINGS_DIR, f'detection_report.txt')
+
+audioTest = "testaudio/happy_fearV2.wav" #sample audio file for testing
 
 def write_user_to_report():
     username = session.get('username')
@@ -86,16 +90,72 @@ def check_wav_in_folder(folder_path):
             return os.path.join(folder_path, file)  # Return the first .wav file found
     return None
 
-def analyze_audio():    
-    
+def split_audio_into_chunks(audio_path, chunk_duration=2000):
+
+    try:
+        # Load audio file
+        audio = AudioSegment.from_wav(audio_path)
+        
+        # Get total duration in milliseconds
+        total_duration = len(audio)
+        
+        # Calculate number of chunks
+        num_chunks = math.ceil(total_duration / chunk_duration)
+        
+        chunk_paths = []
+        
+        # Split and save chunks
+        for i in range(num_chunks):
+            start_time = i * chunk_duration
+            end_time = min((i + 1) * chunk_duration, total_duration)
+            
+            chunk = audio[start_time:end_time]
+            chunk_path = os.path.join(RECORDINGS_DIR, f'chunk_{i+1}.wav')
+            chunk.export(chunk_path, format="wav")
+            chunk_paths.append(chunk_path)
+            
+        return chunk_paths
+    except Exception as e:
+        print(f"Error splitting audio: {e}")
+        return []
+
+def analyze_audio():
+    import re  # Add import for regular expression support    
     if check_wav_in_folder(RECORDINGS_DIR):
-        result = analyze_depression_audio(AUDIO_FILEPATH)
-    
+        # Split the audio file into 3-second chunks
+        chunk_paths = split_audio_into_chunks(AUDIO_FILEPATH)
+       
         with open(REPORT_PATH, 'a') as report_file:
             report_file.write('Audio Analysis\n')
             report_file.write('---------------\n')
-            report_file.write(result)
-            report_file.write('\n\n')
+           
+            if not chunk_paths:
+                report_file.write("Error: Could not split audio into chunks\n\n")
+                return
+            
+            # Store depression probabilities for final calculation
+            depression_probs = []
+               
+            for i, chunk_path in enumerate(chunk_paths):
+                result = analyze_depression_audio(chunk_path)
+                report_file.write(f'Chunk {i+1} (2 sec): {result}\n')
+                
+                # Parse the result string to extract depression and non-depression probabilities
+                result_str = str(result)
+                
+                # Extract the depression probability
+                depression_match = re.search(r'Depression: (\d+\.\d+)%', result_str)
+                depression_prob = float(depression_match.group(1))/100 if depression_match else 0.0
+                
+                depression_probs.append(depression_prob)
+            
+            # Calculate the final probabilities
+            final_depression_prob = sum(depression_probs) / len(depression_probs) * 100
+            
+            # Write final results
+            report_file.write('\n')
+            report_file.write(f'Depression Probability: {final_depression_prob:.2f}%\n')
+            report_file.write('\n')
 
 #----------------------------------------------------------------------------------------------------
 # SENTIMENT ANALYSIS (TEXTUAL)
@@ -112,8 +172,8 @@ def analyze_sentiment():
             report_file.write("Please ensure you speak clearly during the recording\n")
         else:
             report_file.write(f'Transcribed Text from Audio: {transcribed_text}\n')
+            report_file.write('\n')
             report_file.write(f'Depression Probability: {100-pred_prob*100:.2f}%\n')
-            report_file.write(f'PREDICTION: {prediction}')
             report_file.write('\n\n')
 
 #----------------------------------------------------------------------------------------------------
@@ -219,10 +279,7 @@ def visual_detection_and_analysis():
 def save_analysis_results(percentages):
     try:
         depressed_percent = (percentages['Sad'] + percentages['Angry'] + 
-                            percentages['Fear'] + percentages['Disgust']/2 + 
-                            percentages['Surprise']/2 + percentages['Neutral']/2)
-        non_depressed_percent = (percentages['Happy'] + percentages['Neutral']/2 + 
-                                percentages['Disgust']/2 + percentages['Surprise']/2)
+                            percentages['Fear'] + percentages['Disgust'])
         
         with open(REPORT_PATH, 'w') as report_file:
             report_file.write('Visual Analysis\n')
@@ -231,10 +288,7 @@ def save_analysis_results(percentages):
                 report_file.write(f'{emotion}: {percent:.2f}%\n')
         
             report_file.write(f'\nDepression probability: {depressed_percent:.2f}%\n')
-            report_file.write(f'Non-Depression probability: {non_depressed_percent:.2f}%\n')
             report_file.write(f'\nPREDICTION: ')
-            report_file.write('Depression detected' if depressed_percent > non_depressed_percent 
-                             else 'No depression detected')
             report_file.write('\n\n')
     except Exception as e:
         print(f"Error saving analysis results: {e}")
@@ -244,7 +298,6 @@ def save_analysis_results(percentages):
 #----------------------------------------------------------------------------------------------------
 # ROUTES
 #----------------------------------------------------------------------------------------------------
-# Initialize the Flask app
 app = Flask(__name__)
 app.secret_key = '123#'  
         

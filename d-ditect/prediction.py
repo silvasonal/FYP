@@ -2,18 +2,22 @@ import numpy as np
 import librosa
 from pathlib import Path
 from sklearn.preprocessing import OneHotEncoder 
-from keras.models import load_model 
+from keras.models import load_model  # type: ignore
 from transformers import BertTokenizer
-from keras.preprocessing.sequence import pad_sequences
+from keras.preprocessing.sequence import pad_sequences # type: ignore
 from vosk import Model, KaldiRecognizer
 import wave
 import json  
 from pydub import AudioSegment
 
-
 # Constants
 EMOTIONS = ['happy', 'sad', 'neutral', 'angry', 'disgust', 'fear', 'surprise']
-NON_DEPRESSED_EMOTIONS = {'happy', 'neutral'}
+
+NON_DEPRESSED_EMOTIONS = {
+    "happy": 1.0,       #1.0 means fully non-depressed
+    "neutral": 1.0,     
+    "surprise": 1.0     
+}
 AUDIO_MODEL_PATH = "models/tess_trained_model.h5"
 SENTIMENT_MODEL_PATH = "models/sentiment_analysis_cnn_model.h5"
 MAX_SEQUENCE_LENGTH = 100
@@ -32,13 +36,13 @@ def extract_mfcc(filename):
 def audio_to_text(audio_file):
     try:
         # Set the path to the model directory
-        model_path = "vosk-model-small-en-us-0.15"  # Change this to your model path
+        model_path = "vosk-model-small-en-us-0.15" 
         
         # Convert audio to mono if it's stereo
         audio = AudioSegment.from_wav(audio_file)
         if audio.channels != 1:
             audio = audio.set_channels(1)
-            audio.export(audio_file, format="wav")  # Overwrite with mono version
+            audio.export(audio_file, format="wav")  
         
         # Load the Vosk model
         model = Model(model_path)
@@ -60,7 +64,7 @@ def audio_to_text(audio_file):
                 break
             if recognizer.AcceptWaveform(data):
                 result = recognizer.Result()
-                text += json.loads(result)["text"] + " "  # Use json to parse the result
+                text += json.loads(result)["text"] + " "  
         
         # Return the transcribed text
         text =  text.strip()
@@ -90,11 +94,15 @@ def predict_depression(audio_file, enc):
         y_pred_probs = model.predict(X_input, verbose=0)
         predicted_label = enc.inverse_transform(y_pred_probs)[0][0]
         
-        # Return prediction
-        return ("PREDICTION: No depression detected."
-                if predicted_label in NON_DEPRESSED_EMOTIONS
-                else "PREDICTION: Depression detected.")
-                
+        # Get the probability from NON_DEPRESSED_EMOTIONS, default to 0 (fully depressed)
+        non_depressed_prob = NON_DEPRESSED_EMOTIONS.get(predicted_label, 0.0)
+        depressed_prob = 1.0 - non_depressed_prob 
+
+        return (
+        f'  - Emotion: {predicted_label}'
+        f' - Depression: {depressed_prob * 100:.2f}%'
+        )
+
     except Exception as e:
         raise ValueError(f"Failed to analyze audio: {e}")
 
